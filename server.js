@@ -31,7 +31,6 @@ discordClient.on('ready', async () => {
 });
 
 discordClient.on('messageCreate', (message) => {
-  console.log(message);
   // if (message.content.toLowerCase() === 'welcome') {
     message.reply('welcome');
   // }
