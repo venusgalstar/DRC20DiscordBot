@@ -6,10 +6,11 @@ const bodyParser = require('body-parser');
 const app = express();
 const cors = require('cors');
 const { Client, Intents, GatewayIntentBits } = require('discord.js');
+const dotenv = require('dotenv')
 
 const port = 5000;
 
-const DISCORD_BOT_TOKEN = 'MTIwMzI3MzUwODM2OTYwNDY3MA.GJwfVe.zxHtGSjmGcmdBJEchCnwRKxG9GeGXzCa_EekGE';
+const DISCORD_BOT_TOKEN = process.env.DISCORD_BOT_TOKEN;
 const DISCORD_SUPCOINSERVER_ID = '1203274262199144499';
 
 const intents = [
