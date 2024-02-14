@@ -1,90 +1,98 @@
 require('dotenv').config();
-
-const express = require('express');
-const axios = require('axios');
-const bodyParser = require('body-parser');
-const app = express();
-const cors = require('cors');
-const { Client, Intents, GatewayIntentBits, ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder} = require('discord.js');
 const dotenv = require('dotenv')
+const crypto = require('crypto');
 
-const port = 5000;
+const { Client, GatewayIntentBits, ButtonBuilder, ButtonStyle, ActionRowBuilder, Events, ModalBuilder, EmbedBuilder, MessageButton , TextInputBuilder, TextInputStyle  } = require('discord.js');
 
-const DISCORD_BOT_TOKEN = process.env.DISCORD_BOT_TOKEN;
-const DISCORD_SUPCOINSERVER_ID = '1203274262199144499';
+const DISCORD_TOKEN = process.env.DISCORD_BOT_TOKEN;
 
-const intents = [
-  GatewayIntentBits.Guilds,
-  GatewayIntentBits.GuildMembers,
-  GatewayIntentBits.GuildMessages,
-  GatewayIntentBits.MessageContent,
-  GatewayIntentBits.DirectMessages,
-];
-app.use(cors());
-app.use(bodyParser.json());
-
-// discord client start
-const discordClient = new Client({ intents });
-discordClient.login(DISCORD_BOT_TOKEN);
-discordClient.on('ready', async () => {
-  console.log(`Logged in as ${discordClient.user.tag}!`);
+// Create a new client instance with necessary intents
+const client = new Client({
+    intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent,
+    ],
 });
 
-discordClient.on('interactionCreate', async interaction => {
-    // Check if the interaction is a slash command
-    console.log(interaction);
-    if (interaction.isCommand()) {
-        // Check if the command name is 'dialog'
-        if (interaction.commandName === 'dialog') {
-            // Create a modal builder object
-            const modal = new ModalBuilder()
-                .setCustomId('myDialog')
-                .setTitle('My Dialog');
-
-            // Create text input components
-            const nameInput = new TextInputBuilder()
-                .setCustomId('nameInput')
-                .setLabel('What is your name?')
-                .setStyle(TextInputStyle.Short);
-
-            const bioInput = new TextInputBuilder()
-                .setCustomId('bioInput')
-                .setLabel('Tell me something about yourself.')
-                .setStyle(TextInputStyle.Paragraph);
-
-            // Create action row components
-            const firstActionRow = new ActionRowBuilder().addComponents(nameInput);
-            const secondActionRow = new ActionRowBuilder().addComponents(bioInput);
-
-            // Add action rows to the modal
-            modal.addComponents(firstActionRow, secondActionRow);
-
-            // Show the modal to the user
-            await interaction.showModal(modal);
-        }
-    }
-
-    // Check if the interaction is a modal submission
-    if (interaction.isModalSubmission()) {
-        // Check if the modal custom id is 'myDialog'
-        if (interaction.customId === 'myDialog') {
-            // Get the user inputs from the modal
-            const values = interaction.getValues();
-            const name = values.nameInput;
-            const bio = values.bioInput;
-
-            // Process the user inputs in your bot logic
-            // For example, send a message to the channel with the user inputs
-            await interaction.channel.send(`Hello, ${name}! You said: ${bio}`);
-
-            // Send a response to the user
-            await interaction.update('Thank you for submitting the dialog.');
-        }
-    }
+client.on('textChannelJoin', async message => {
+  const button = new ButtonBuilder()
+  .setCustomId('myButton')
+  .setLabel('Click me')
+  .setStyle(ButtonStyle.Primary);
+  
+  // Create an action row component
+  const actionRow = new ActionRowBuilder().addComponents(button);
+  
+  // Send a message to the channel with the action row component
+  await message.channel.send({ content: `Welcome ${message.author} to the text channel ${message.channel}`, components: [actionRow] });
 });
 
-discordClient.on('messageCreate', (message) => {
-  if (message.content.toLowerCase() === 'welcome') {
-    message.reply('welcome');
+client.once('ready', () => {
+  console.log(`Logged in as ${client.user.displayName}!`);
+});
+
+client.on('messageCreate', async (message) => {
+  if (message.author.bot) return;
+
+  console.log(message.author.username);
+
+  const button = new ButtonBuilder()
+  .setCustomId('verify')
+  .setLabel('Verify User')
+  .setStyle(ButtonStyle.Primary);
+  
+  // Create an action row component
+  const actionRow = new ActionRowBuilder().addComponents(button);
+  
+  // Send a message to the channel with the action row component
+  await message.channel.send({ content: `Welcome ${message.author} to the verify on ${message.channel}`, components: [actionRow] });
+
+  //await message.reply('You are verified!');
+});
+
+client.on('interactionCreate', async interaction => {
+  if (interaction.isButton()) {
+    console.log(interaction.user.username);
+    const modal = new ModalBuilder()
+      .setCustomId('verificationDlg')
+      .setTitle('Verification');
+
+    const randomBuffer = crypto.randomBytes(64);
+    const randomString = randomBuffer.toString('hex');
+
+    const codeInput = new TextInputBuilder()
+      .setCustomId('codeInput')
+      .setLabel('Verification code')
+      .setValue(randomString)
+      .setStyle(TextInputStyle.Short);
+
+    const hashInput = new TextInputBuilder()
+      .setCustomId('hashInput')
+      .setLabel('Hashcode signed by your wallet')
+      .setStyle(TextInputStyle.Paragraph);
+
+    // Create action row components
+    const firstActionRow = new ActionRowBuilder().addComponents(codeInput);
+    const secondActionRow = new ActionRowBuilder().addComponents(hashInput);
+
+    // Add action rows to the modal
+    modal.addComponents(firstActionRow, secondActionRow);
+
+    // Show the modal to the user
+    await interaction.showModal(modal);
+  }
+
+  if (interaction.isModalSubmit()) {
+    if (interaction.customId === 'verificationDlg') {
+        const code = interaction.fields.getTextInputValue('codeInput');
+        const hash = interaction.fields.getTextInputValue('hashInput');
+        console.log(code, hash);
+        await interaction.channel.send(`Hello, ${code}! You said: ${hash}`);
+    }
   }
 });
+
+// Login to Discord with your app's token
+client.login(DISCORD_TOKEN);
+          
