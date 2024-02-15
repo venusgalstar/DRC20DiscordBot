@@ -1,6 +1,7 @@
 require('dotenv').config();
 const dotenv = require('dotenv')
 const crypto = require('crypto');
+const axios = require('axios');
 
 const { Client, GatewayIntentBits, ButtonBuilder, ButtonStyle, ActionRowBuilder, Events, ModalBuilder, EmbedBuilder, MessageButton , TextInputBuilder, TextInputStyle  } = require('discord.js');
 
@@ -15,19 +16,6 @@ const client = new Client({
     ],
 });
 
-client.on('textChannelJoin', async message => {
-  const button = new ButtonBuilder()
-  .setCustomId('myButton')
-  .setLabel('Click me')
-  .setStyle(ButtonStyle.Primary);
-  
-  // Create an action row component
-  const actionRow = new ActionRowBuilder().addComponents(button);
-  
-  // Send a message to the channel with the action row component
-  await message.channel.send({ content: `Welcome ${message.author} to the text channel ${message.channel}`, components: [actionRow] });
-});
-
 client.once('ready', () => {
   console.log(`Logged in as ${client.user.displayName}!`);
 });
@@ -35,59 +23,73 @@ client.once('ready', () => {
 client.on('messageCreate', async (message) => {
   if (message.author.bot) return;
 
-  console.log(message.author.username);
+  await axios.post("https://thedragontest.com/discord/verified", {username:message.author.username}).then(async response => {
+    let verified = response.data.verified;
+    if(!verified)
+    {
+      const verifyButton = new ButtonBuilder()
+      .setCustomId('verify')
+      .setLabel('Verify User')
+      .setStyle(ButtonStyle.Primary);
 
-  const button = new ButtonBuilder()
-  .setCustomId('verify')
-  .setLabel('Verify User')
-  .setStyle(ButtonStyle.Primary);
-  
-  // Create an action row component
-  const actionRow = new ActionRowBuilder().addComponents(button);
-  
-  // Send a message to the channel with the action row component
-  await message.channel.send({ content: `Welcome ${message.author} to the verify on ${message.channel}`, components: [actionRow] });
+      const randomBuffer = crypto.randomBytes(64);
+      const randomString = randomBuffer.toString('hex');
 
-  //await message.reply('You are verified!');
+      const gotoButton = new ButtonBuilder()
+      .setLabel('Sign Data')
+      .setStyle(ButtonStyle.Link)
+      .setURL("https://thedragontest.com?code=" + randomString);
+
+      const actionRow = new ActionRowBuilder().addComponents(gotoButton, verifyButton);
+      
+      await message.channel.send({ content: `Welcome ${message.author} to verify on ${message.channel}`, components: [actionRow] });
+    }
+  })
+  .catch(error => {
+    console.error(error);
+  });
 });
 
 client.on('interactionCreate', async interaction => {
   if (interaction.isButton()) {
-    console.log(interaction.user.username);
-    const modal = new ModalBuilder()
-      .setCustomId('verificationDlg')
-      .setTitle('Verification');
+    //console.log(interaction.user.username);
+    if(interaction.customId === "verify")
+    {
+      const modal = new ModalBuilder()
+        .setCustomId('verificationDlg')
+        .setTitle('Verification');
 
-    const randomBuffer = crypto.randomBytes(64);
-    const randomString = randomBuffer.toString('hex');
+      const randomBuffer = crypto.randomBytes(64);
+      const randomString = randomBuffer.toString('hex');
 
-    const codeInput = new TextInputBuilder()
-      .setCustomId('codeInput')
-      .setLabel('Verification code')
-      .setValue(randomString)
-      .setStyle(TextInputStyle.Short);
+      const codeInput = new TextInputBuilder()
+        .setCustomId('codeInput')
+        .setLabel('Verification code')
+        .setValue(randomString)
+        .setStyle(TextInputStyle.Short);
 
-    const hashInput = new TextInputBuilder()
-      .setCustomId('hashInput')
-      .setLabel('Hashcode signed by your wallet')
-      .setStyle(TextInputStyle.Paragraph);
+      const hashInput = new TextInputBuilder()
+        .setCustomId('hashInput')
+        .setLabel('Hashcode signed by your wallet')
+        .setStyle(TextInputStyle.Paragraph);
 
-    // Create action row components
-    const firstActionRow = new ActionRowBuilder().addComponents(codeInput);
-    const secondActionRow = new ActionRowBuilder().addComponents(hashInput);
+      // Create action row components
+      const firstActionRow = new ActionRowBuilder().addComponents(codeInput);
+      const secondActionRow = new ActionRowBuilder().addComponents(hashInput);
 
-    // Add action rows to the modal
-    modal.addComponents(firstActionRow, secondActionRow);
+      // Add action rows to the modal
+      modal.addComponents(firstActionRow, secondActionRow);
 
-    // Show the modal to the user
-    await interaction.showModal(modal);
+      // Show the modal to the user
+      await interaction.showModal(modal);
+    }
   }
 
   if (interaction.isModalSubmit()) {
     if (interaction.customId === 'verificationDlg') {
         const code = interaction.fields.getTextInputValue('codeInput');
         const hash = interaction.fields.getTextInputValue('hashInput');
-        console.log(code, hash);
+        console.log(interaction.user.username, code, hash);
         await interaction.channel.send(`Hello, ${code}! You said: ${hash}`);
     }
   }
