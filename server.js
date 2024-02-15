@@ -35,6 +35,8 @@ client.on('messageCreate', async (message) => {
       const randomBuffer = crypto.randomBytes(64);
       const randomString = randomBuffer.toString('hex');
 
+      await axios.post("https://thedragontest.com/discord/set_code", {username:message.author.username, code:randomString});
+
       const gotoButton = new ButtonBuilder()
       .setLabel('Sign Data')
       .setStyle(ButtonStyle.Link)
@@ -59,13 +61,15 @@ client.on('interactionCreate', async interaction => {
         .setCustomId('verificationDlg')
         .setTitle('Verification');
 
-      const randomBuffer = crypto.randomBytes(64);
-      const randomString = randomBuffer.toString('hex');
-
+      let code = '';
+      await axios.post("https://thedragontest.com/discord/code", {username:interaction.user.username}).then(async response => {
+        code = response.data.code;
+      });
+      
       const codeInput = new TextInputBuilder()
         .setCustomId('codeInput')
         .setLabel('Verification code')
-        .setValue(randomString)
+        .setValue(code)
         .setStyle(TextInputStyle.Short);
 
       const hashInput = new TextInputBuilder()

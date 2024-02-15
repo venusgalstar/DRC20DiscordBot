@@ -1,8 +1,11 @@
 'use client'
 import { useState, useRef, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 
 function Page() {
-  const [seed, setSeed] = useState('');
+  const searchParams = useSearchParams();
+  const code = searchParams.get('code') ?? "";
+  const [seed, setSeed] = useState(code);
   const [hash, setHash] = useState('');
 
   const handleSeedChange = (ev:any) => {
@@ -30,8 +33,8 @@ function Page() {
       
       <div className="flex justify-center">
         <div className="grid grid-cols-2 gap-4 place-content-center h-50 border-4 rounded-lg border-cyan-500 p-4">
-          <span>Seed String</span>
-          <input type="text" id="seed" className="border border-slate-600 rounded pl-1 pr-1" value={seed} onChange={handleSeedChange}></input>
+          <span>Code value</span>
+          <input type="text" id="seed" className="border border-slate-600 rounded pl-1 pr-1" value={seed} onChange={handleSeedChange} readOnly></input>
           <span>Signed hash</span>
           <input type="text" id="hash" className="border border-slate-600 rounded pl-1 pr-1" value={hash} onChange={handleHashChange}></input>
           <span></span>
