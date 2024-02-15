@@ -54,6 +54,10 @@ export function useWallet() {
     unconfirmed: 0,
     total: 0,
   })
+
+  const [addressCallback, setAddressCallback] = useState<any>(null)
+  const [buttonCallback, setButtonCallback] = useState<any>(null)
+
   const [network, setNetwork] = useState('livenet')
 
   const getWalletInfo = async () => {
@@ -88,14 +92,9 @@ export function useWallet() {
       setAddress(_accounts[0])
       setPublicKey(_accounts[0])
       getWalletInfo()
-      let button = document.getElementById('walletConnect')
-      button.innerHTML = "Connected"
     } else {
       setConnected(false)
       getWalletInfo()
-      alert("Wallet is not disconnected")
-      let button = document.getElementById('walletConnect')
-      button.innerHTML = "Connect Wallet"
     }
   }
 

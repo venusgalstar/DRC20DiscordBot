@@ -1,7 +1,12 @@
 require('dotenv').config();
 const dotenv = require('dotenv')
 const crypto = require('crypto');
-const axios = require('axios');
+
+const bitcoin = require ('bitcoinjs-lib')
+const bitcoinMessage = require('bitcoin-message')
+const bs58 = require('bs58')
+
+let {setCode, getCode, getVerified, setVerified} = require ('./db.js');
 
 const { Client, GatewayIntentBits, ButtonBuilder, ButtonStyle, ActionRowBuilder, Events, ModalBuilder, EmbedBuilder, MessageButton , TextInputBuilder, TextInputStyle  } = require('discord.js');
 
@@ -23,8 +28,7 @@ client.once('ready', () => {
 client.on('messageCreate', async (message) => {
   if (message.author.bot) return;
 
-  await axios.post("https://thedragontest.com/discord/verified", {username:message.author.username}).then(async response => {
-    let verified = response.data.verified;
+  getVerified(message.author.username, async (verified)=>{
     if(!verified)
     {
       const verifyButton = new ButtonBuilder()
@@ -35,65 +39,67 @@ client.on('messageCreate', async (message) => {
       const randomBuffer = crypto.randomBytes(64);
       const randomString = randomBuffer.toString('hex');
 
-      await axios.post("https://thedragontest.com/discord/set_code", {username:message.author.username, code:randomString});
+      await setCode(message.author.username, randomString, async (id)=>{
+        const gotoButton = new ButtonBuilder()
+        .setLabel('Sign Data')
+        .setStyle(ButtonStyle.Link)
+        .setURL("https://thedragontest.com?code=" + randomString);
 
-      const gotoButton = new ButtonBuilder()
-      .setLabel('Sign Data')
-      .setStyle(ButtonStyle.Link)
-      .setURL("https://thedragontest.com?code=" + randomString);
-
-      const actionRow = new ActionRowBuilder().addComponents(gotoButton, verifyButton);
-      
-      await message.channel.send({ content: `Welcome ${message.author} to verify on ${message.channel}`, components: [actionRow] });
+        const actionRow = new ActionRowBuilder().addComponents(gotoButton, verifyButton);
+        
+        await message.channel.send({ content: `Welcome ${message.author} to verify on ${message.channel}`, components: [actionRow] });
+      });
     }
-  })
-  .catch(error => {
-    console.error(error);
+    else
+    {
+      await message.channel.send({ content: `Welcome verified user: ${message.author}` });
+    }
   });
 });
 
 client.on('interactionCreate', async interaction => {
   if (interaction.isButton()) {
-    //console.log(interaction.user.username);
     if(interaction.customId === "verify")
     {
       const modal = new ModalBuilder()
         .setCustomId('verificationDlg')
         .setTitle('Verification');
 
-      let code = '';
-      await axios.post("https://thedragontest.com/discord/code", {username:interaction.user.username}).then(async response => {
-        code = response.data.code;
+      getCode(interaction.user.username, async (code)=>{
+        const codeInput = new TextInputBuilder()
+          .setCustomId('codeInput')
+          .setLabel('Verification code')
+          .setValue(code)
+          .setStyle(TextInputStyle.Short);
+
+        const addressInput = new TextInputBuilder()
+          .setCustomId('addressInput')
+          .setLabel('Wallet address')
+          .setStyle(TextInputStyle.Short);
+
+        const hashInput = new TextInputBuilder()
+          .setCustomId('hashInput')
+          .setLabel('Hashcode signed by your wallet')
+          .setStyle(TextInputStyle.Paragraph);
+
+        const firstActionRow = new ActionRowBuilder().addComponents(codeInput);
+        const secondActionRow = new ActionRowBuilder().addComponents(addressInput);
+        const thirdActionRow = new ActionRowBuilder().addComponents(hashInput);
+
+        modal.addComponents(firstActionRow, secondActionRow, thirdActionRow);
+
+        await interaction.showModal(modal);
       });
-      
-      const codeInput = new TextInputBuilder()
-        .setCustomId('codeInput')
-        .setLabel('Verification code')
-        .setValue(code)
-        .setStyle(TextInputStyle.Short);
-
-      const hashInput = new TextInputBuilder()
-        .setCustomId('hashInput')
-        .setLabel('Hashcode signed by your wallet')
-        .setStyle(TextInputStyle.Paragraph);
-
-      // Create action row components
-      const firstActionRow = new ActionRowBuilder().addComponents(codeInput);
-      const secondActionRow = new ActionRowBuilder().addComponents(hashInput);
-
-      // Add action rows to the modal
-      modal.addComponents(firstActionRow, secondActionRow);
-
-      // Show the modal to the user
-      await interaction.showModal(modal);
     }
   }
 
   if (interaction.isModalSubmit()) {
     if (interaction.customId === 'verificationDlg') {
-        const code = interaction.fields.getTextInputValue('codeInput');
         const hash = interaction.fields.getTextInputValue('hashInput');
-        console.log(interaction.user.username, code, hash);
+        const code = interaction.fields.getTextInputValue('codeInput');
+        const address = interaction.fields.getTextInputValue('addressInput');
+        const verified = bitcoinMessage.verify(code, address, hash);
+        console.log(verified);
         await interaction.channel.send(`Hello, ${code}! You said: ${hash}`);
     }
   }
